@@ -26,6 +26,7 @@ fn main() {
     day("day5", "data/5.txt", day5::day);
     day("day5_2", "data/5.txt", day5::day_2);
     day("day6", "data/6.txt", day6::day);
+    day("day6_2", "data/6.txt", day6::day_2);
 }
 
 fn day<R: Display, F: Fn(&str) -> R>(label: &str, input_filename: &str, day_func: F) {
