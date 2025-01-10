@@ -1,24 +1,34 @@
 #![allow(dead_code)]
 
 pub fn day(input: &str) -> u64 {
+    const OPERATIONS: [Operation; 2] = [Operation::Add, Operation::Mul];
+    sum_equations(input, OPERATIONS)
+}
+
+pub fn day_2(input: &str) -> u64 {
+    const OPERATIONS: [Operation; 3] = [Operation::Add, Operation::Mul, Operation::Concat];
+    sum_equations(input, OPERATIONS)
+}
+
+fn sum_equations<const N: usize>(input: &str, operations_set: [Operation; N]) -> u64 {
     let input = parse_input(input);
     let sum = input.equations.iter().filter_map(
-        |equation: &Equation| if check_equation(equation) { 
-            Some(equation.result) 
-        } else { 
-            None 
+        |equation: &Equation| if check_equation(equation, operations_set) {
+            Some(equation.result)
+        } else {
+            None
         }
     ).sum();
 
     for equation in input.equations {
-        if check_equation(&equation) {}
+        if check_equation(&equation, operations_set) {}
     }
 
     sum
 }
 
-fn check_equation(equation: &Equation) -> bool {
-    let operations_iter = OperationsIter::new(equation.operands.len() - 1);
+fn check_equation<const N: usize>(equation: &Equation, operations_set: [Operation; N]) -> bool {
+    let operations_iter = OperationsIter::new(equation.operands.len() - 1, operations_set);
 
     for operations in operations_iter {
         let mut operands_iter = equation.operands.iter();
@@ -27,6 +37,7 @@ fn check_equation(equation: &Equation) -> bool {
             match operation {
                 Operation::Add => { acc + *operand as u64 }
                 Operation::Mul => { acc * *operand as u64 }
+                Operation::Concat => { format!("{}{}", acc, operand).parse().unwrap() }
             }
         });
 
@@ -42,41 +53,42 @@ fn check_equation(equation: &Equation) -> bool {
 enum Operation {
     Add,
     Mul,
+    Concat
 }
 
 #[derive(Debug)]
-struct OperationsIter {
+struct OperationsIter<const N: usize> {
+    operations_set: [Operation; N],
     operations: Vec<usize>,
     is_finished: bool,
 }
 
-impl OperationsIter {
-    fn new(size: usize) -> Self {
+impl<const N: usize> OperationsIter<N> {
+    fn new(size: usize, operations_set: [Operation; N]) -> Self {
         OperationsIter {
+            operations_set,
             operations: vec![0; size],
             is_finished: false,
         }
     }
 }
 
-impl Iterator for OperationsIter {
+impl<const N: usize> Iterator for OperationsIter<N> {
     type Item = Vec<Operation>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        const OPERATIONS: [Operation; 2] = [Operation::Add, Operation::Mul];
-
         if self.is_finished {
             return None;
         }
 
-        let result = Some(self.operations.iter().map(|digit_idx| OPERATIONS[*digit_idx]).collect());
+        let result = Some(self.operations.iter().map(|digit_idx| self.operations_set[*digit_idx]).collect());
 
         let mut digit_number = 0;
         let mut carry = 1;
         loop {
             let mut digit_idx = self.operations[digit_number];
             digit_idx += carry;
-            if digit_idx == OPERATIONS.len() {
+            if digit_idx == N {
                 carry = 1;
                 digit_idx = 0;
             } else {
@@ -183,7 +195,9 @@ mod tests {
 
     #[test]
     fn test_operations_iter() {
-        let mut iter = OperationsIter::new(2);
+        const OPERATIONS: [Operation; 2] = [Operation::Add, Operation::Mul];
+
+        let mut iter = OperationsIter::new(2, OPERATIONS);
 
         assert_eq!(iter.next().unwrap(), [Operation::Add, Operation::Add]);
         assert_eq!(iter.next().unwrap(), [Operation::Mul, Operation::Add]);
@@ -193,7 +207,9 @@ mod tests {
     }
 
     #[test]
-    fn text_check_equation() {
+    fn test_check_equation() {
+        const OPERATIONS: [Operation; 2] = [Operation::Add, Operation::Mul];
+
         let good_equation = Equation {
             result: 55,
             operands: vec![11, 4, 11],
@@ -204,7 +220,40 @@ mod tests {
             operands: vec![5, 3],
         };
 
-        assert!(check_equation(&good_equation));
-        assert!(!check_equation(&bad_equation));
+        assert!(check_equation(&good_equation, OPERATIONS));
+        assert!(!check_equation(&bad_equation, OPERATIONS));
+    }
+
+    #[test]
+    fn test_check_equation2() {
+        const OPERATIONS: [Operation; 3] = [Operation::Add, Operation::Mul, Operation::Concat];
+
+        let good_equation = Equation {
+            result: 55,
+            operands: vec![5, 5],
+        };
+
+        let bad_equation = Equation {
+            result: 22,
+            operands: vec![5, 3],
+        };
+
+        assert!(check_equation(&good_equation, OPERATIONS));
+        assert!(!check_equation(&bad_equation, OPERATIONS));
+    }
+
+    #[test]
+    fn test_day_2() {
+        let input = r#"190: 10 19
+3267: 81 40 27
+83: 17 5
+156: 15 6
+7290: 6 8 6 15
+161011: 16 10 13
+192: 17 8 14
+21037: 9 7 18 13
+292: 11 6 16 20"#;
+
+        assert_eq!(11387, day_2(input));
     }
 }
