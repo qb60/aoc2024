@@ -32,6 +32,7 @@ fn main() {
     // day("day7", "data/7.txt", day7::day);
     // day("day7_2", "data/7.txt", day7::day_2);
     day("day8", "data/8.txt", day8::day);
+    day("day8_2", "data/8.txt", day8::day_2);
 }
 
 fn day<R: Display, F: Fn(&str) -> R>(label: &str, input_filename: &str, day_func: F) {

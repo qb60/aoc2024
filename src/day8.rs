@@ -1,7 +1,9 @@
 #![allow(dead_code)]
 
+use std::borrow::Borrow;
 use std::collections::HashSet;
-use std::ops::{Add, Mul, Sub};
+use std::hash::Hash;
+use std::ops::{Add, AddAssign, Mul, Sub};
 use itertools::Itertools;
 use crate::multimap::MultiMap;
 
@@ -12,8 +14,8 @@ pub fn day(input: &str) -> u32 {
 
     for group in input.antennas_groups {
         for (a1, a2) in group.iter().tuple_combinations() {
-            let x1 = *a1 * 2 - *a2;
-            let x2 = *a2 * 2 - *a1;
+            let x1 = a1 * 2 - a2;
+            let x2 = a2 * 2 - a1;
 
             if is_point_in(&x1, &input.size) {
                 antinodes.insert(x1);
@@ -28,10 +30,33 @@ pub fn day(input: &str) -> u32 {
     antinodes.len() as u32
 }
 
+pub fn day_2(input: &str) -> u32 {
+    let input = parse_input(input);
+
+    let mut antinodes = HashSet::new();
+
+    for group in input.antennas_groups {
+        for (a1, a2) in group.iter().tuple_combinations() {
+            add_points(a1, a1 - a2, &input.size, &mut antinodes);
+            add_points(a2, a2 - a1, &input.size, &mut antinodes);
+        }
+    }
+
+    antinodes.len() as u32
+}
+
 fn is_point_in(point: &Point, size: &Point) -> bool {
     point.x >= 0 && point.y >= 0
         && point.x < size.x
         && point.y < size.y
+}
+
+fn add_points<T: Borrow<Point>>(initial_point: &Point, step: T, size: &Point, set_to_add: &mut HashSet<Point>) {
+    let mut current_point = *initial_point;
+    while is_point_in(&current_point, size) {
+        set_to_add.insert(current_point);
+        current_point += step.borrow();
+    }
 }
 
 #[derive(Debug, Copy, Clone, Default, PartialEq, Hash, Eq, PartialOrd, Ord)]
@@ -48,11 +73,26 @@ impl Add<i32> for Point {
     }
 }
 
-impl Sub<Point> for Point {
+impl<T: Borrow<Point>> AddAssign<T> for Point {
+    fn add_assign(&mut self, rhs: T) {
+        self.x += rhs.borrow().x;
+        self.y += rhs.borrow().y;
+    }
+}
+
+impl<T: Borrow<Point>> Sub<T> for Point {
     type Output = Self;
 
-    fn sub(self, rhs: Point) -> Self::Output {
-        Self { x: self.x - rhs.x, y: self.y - rhs.y }
+    fn sub(self, rhs: T) -> Self::Output {
+        Self { x: self.x - rhs.borrow().x, y: self.y - rhs.borrow().y }
+    }
+}
+
+impl<T: Borrow<Point>> Sub<T> for &Point {
+    type Output = Point;
+
+    fn sub(self, rhs: T) -> Self::Output {
+        Self::Output { x: self.x - rhs.borrow().x, y: self.y - rhs.borrow().y }
     }
 }
 
@@ -61,6 +101,14 @@ impl Mul<i32> for Point {
 
     fn mul(self, rhs: i32) -> Self::Output {
         Self { x: self.x * rhs, y: self.y * rhs }
+    }
+}
+
+impl Mul<i32> for &Point {
+    type Output = Point;
+
+    fn mul(self, rhs: i32) -> Self::Output {
+        Self::Output { x: self.x * rhs, y: self.y * rhs }
     }
 }
 
@@ -146,5 +194,23 @@ mod tests {
         actual_input.antennas_groups.sort();
 
         assert_eq!(actual_input, expected_input);
+    }
+
+    #[test]
+    fn test_day_2() {
+        let input = r#"............
+........0...
+.....0......
+.......0....
+....0.......
+......A.....
+............
+............
+........A...
+.........A..
+............
+............"#;
+
+        assert_eq!(34, day_2(input));
     }
 }
