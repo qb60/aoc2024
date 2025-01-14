@@ -22,7 +22,7 @@ impl<K: PartialEq + Eq + Hash, V: PartialEq + Eq + Hash> MultiMap<K, V> {
             self.map.insert(key, HashSet::from([value]));
         }
     }
-    
+
     pub fn remove(&mut self, key: &K, value: &V) {
         if let Some(values) = self.map.get_mut(key) {
             values.remove(value);
@@ -47,10 +47,16 @@ impl<K: PartialEq + Eq + Hash, V: PartialEq + Eq + Hash> MultiMap<K, V> {
             set_iter: None,
         }
     }
-    
+
     pub fn values(&self) -> Values<K, V> {
         Values {
             iter: self.iter()
+        }
+    }
+
+    pub fn grouped_values(&self) -> GroupedValues<K, V> {
+        GroupedValues {
+            map_iter: self.map.iter(),
         }
     }
 }
@@ -92,7 +98,7 @@ impl<'a, K: 'a, V: 'a> Iterator for Iter<'a, K, V> {
             self.current_key = Some(key);
             self.set_iter = Some(set.iter());
         }
-        
+
         if let Some(set_iter) = &mut self.set_iter {
             if let Some(next_value) = set_iter.next() {
                 Some((self.current_key?, next_value))
@@ -115,6 +121,30 @@ impl<'a, K: 'a, V: 'a> Iterator for Values<'a, K, V> {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.iter.next().map(|(_, value)| value)
+    }
+}
+
+pub struct ValuesGroupIter<'a, V: 'a> {
+    iter: hash_set::Iter<'a, V>,
+}
+
+impl<'a, V: 'a> Iterator for ValuesGroupIter<'a, V> {
+    type Item = &'a V;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter.next()
+    }
+}
+
+pub struct GroupedValues<'a, K: 'a, V: 'a> {
+    map_iter: hash_map::Iter<'a, K, HashSet<V>>,
+}
+
+impl<'a, K: 'a, V: 'a> Iterator for GroupedValues<'a, K, V> {
+    type Item = (&'a K, ValuesGroupIter<'a, V>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.map_iter.next().map(|(key, set)| (key, ValuesGroupIter { iter: set.iter() }))
     }
 }
 
@@ -172,7 +202,7 @@ mod tests {
             (22, 44),
             (33, 55),
         ];
-        
+
         let map = MultiMap::from(key_values);
 
         let mut map_iter = map.iter();
@@ -204,7 +234,7 @@ mod tests {
         assert!(expected_values.contains(values.next().unwrap()));
         assert_eq!(None, values.next());
     }
-    
+
     #[test]
     fn test_remove() {
         let mut map = MultiMap::from([
@@ -219,11 +249,40 @@ mod tests {
             (11, 22),
             (33, 55),
         ]);
-        
+
         map.remove(&11, &33);
         map.remove(&22, &44);
         map.remove(&22, &66);
-        
+
         assert_eq!(expected_map, map);
+    }
+
+    #[test]
+    fn test_values_groups() {
+        let map = MultiMap::from([
+            (11, 22),
+            (11, 33),
+            (11, 44),
+            (22, 44),
+            (33, 55),
+        ]);
+        
+        let expected_values = vec![
+            (11, vec![22, 33, 44]),
+            (22, vec![44]),
+            (33, vec![55])
+        ];
+
+        let mut actual_values = map.grouped_values().map(
+            |(key, values)| {
+                let mut values = values.copied().collect::<Vec<i32>>();
+                values.sort();
+                (*key, values)
+            }
+        ).collect::<Vec<_>>();
+        
+        actual_values.sort();
+        
+        assert_eq!(expected_values, actual_values);
     }
 }
