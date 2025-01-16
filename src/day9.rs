@@ -46,40 +46,37 @@ struct File {
     size: usize,
 }
 
+
 fn defragmentate(blocks: &mut Blocks) {
     let files = get_file_list(blocks);
 
     for file in files.iter().rev() {
-        if let Some(free_space_start) = find_free_space(blocks, file.size) {
-            if free_space_start < file.start {
-                move_blocks(blocks, file.start, free_space_start, file.size);
-            }
+        if let Some(free_space_start) = find_free_space(blocks, file.size, file.start) {
+            move_blocks(blocks, file.start, free_space_start, file.size);
         }
     }
 }
 
-fn find_free_space(blocks: &Blocks, needed_size: usize) -> Option<usize> {
+fn find_free_space(blocks: &Blocks, needed_size: usize, last_block: usize) -> Option<usize> {
     let mut start = None;
     let mut size = 0;
 
-    for (i, block) in blocks.iter().enumerate() {
+    for (i, block) in blocks.iter().enumerate().take(last_block) {
         match block {
             Empty if start.is_some() => {
                 size += 1;
-                if size == needed_size {
-                    break;
-                }
             }
             Empty => {
                 start = Some(i);
                 size = 1;
             }
             File(_) => {
-                if size == needed_size {
-                    break;
-                }
                 start = None;
             }
+        }
+
+        if size == needed_size {
+            break;
         }
     }
 
@@ -248,6 +245,13 @@ mod tests {
     }
 
     #[test]
+    fn test_day_2_2() {
+        let input = r#"1313165"#;
+
+        assert_eq!(169, day_2(input));
+    }
+
+    #[test]
     fn test_parse_input() {
         let input = r#"12345"#;
 
@@ -360,10 +364,10 @@ mod tests {
     fn test_find_free_space() {
         let blocks = "00...111..2....333.44".into();
 
-        let space1 = find_free_space(&blocks, 3).unwrap();
-        let space2 = find_free_space(&blocks, 2).unwrap();
-        let space3 = find_free_space(&blocks, 4).unwrap();
-        let space4 = find_free_space(&blocks, 5);
+        let space1 = find_free_space(&blocks, 3, 14).unwrap();
+        let space2 = find_free_space(&blocks, 2, 4).unwrap();
+        let space3 = find_free_space(&blocks, 4, 100).unwrap();
+        let space4 = find_free_space(&blocks, 5, 100);
 
         assert_eq!(space1, 2);
         assert_eq!(space2, 2);
