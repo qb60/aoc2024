@@ -11,6 +11,7 @@ mod day5;
 mod day6;
 mod day7;
 mod day8;
+mod day9;
 
 fn get_file(path: &str) -> String {
     fs::read_to_string(path).unwrap()
@@ -33,6 +34,8 @@ fn main() {
     // day("day7_2", "data/7.txt", day7::day_2);
     day("day8", "data/8.txt", day8::day);
     day("day8_2", "data/8.txt", day8::day_2);
+    day("day9", "data/9.txt", day9::day);
+    day("day9_2", "data/9.txt", day9::day_2);
 }
 
 fn day<R: Display, F: Fn(&str) -> R>(label: &str, input_filename: &str, day_func: F) {
